@@ -1,6 +1,7 @@
 from django.shortcuts import render, HttpResponse
 from django.http import JsonResponse
 from django.db import transaction
+from django.views.decorators.csrf import csrf_exempt
 from .models import *
 
 import imapclient
@@ -18,6 +19,7 @@ def test_func(request):
 def req_otpass_pubkey(request):
     return HttpResponse("req_pubkey")
 
+@csrf_exempt
 def req_otpass_mail(request):
     """otp가 전달된 메일을 값을 받음
     1. 요청 주요 데이터(이메일, 패스워드 등)들은 pubkey로 암호화

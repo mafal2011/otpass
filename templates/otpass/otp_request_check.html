@@ -6,8 +6,7 @@
     <title>Document</title>
 </head>
 <body>
-    <form action="/otpass/otpass_mail/" method="post">
-        {% csrf_token %}
+    <form action="/otpass/otpass_mail/" method="post"
         <input type="email" name="email" placeholder="이메일"/>
         <input type="text" name="pwd" placeholder="패스워드"/>
         <input type="text" name="mail_idx" placeholder="이메일인덱스"/>
