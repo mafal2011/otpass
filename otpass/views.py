@@ -1,8 +1,11 @@
 from django.shortcuts import render, HttpResponse
+from django.http import JsonResponse
 from django.db import transaction
 from .models import *
 
 import imapclient
+from email.parser import Parser
+import email.policy
 
 EMAIL = 'mafal201121@gmail.com' 
 PASSWORD = 'goyqgwyjnmprnigo'
@@ -34,8 +37,8 @@ def req_otpass_mail(request):
     print(f"ip주소: {ip}")
     
     # 2. GET email(추후 디코딩 포함)
-    email = request.POST['email']
-    print(f'email: {email}')
+    requested_email = request.POST['email']
+    print(f'requested_email: {requested_email}')
     
     # 3. GET pwd(추후 디코딩 포함)
     pwd = request.POST['pwd']
@@ -56,23 +59,33 @@ def req_otpass_mail(request):
         imap_obj.login(EMAIL, PASSWORD)
         # 'INBOX' 폴더를 선택합니다 
         imap_obj.select_folder('INBOX', readonly=True)
-        message_ids = imap_obj.search(['FROM', 'mafal2011@naver.com'])[-1] # 보낸 것을 확인해서 가장 최근에것 하나 들고오기
-        raw_message = imap_obj.fetch([message_ids], ['BODY[]', 'FLAGS'])
-    
-
-    
-    answer = "테스트진행중"
+        message_id = imap_obj.search(['FROM', 'mafal2011@naver.com'])[-1] # 보낸 것을 확인해서 가장 최근에것 하나 들고오기
+        raw_message = imap_obj.fetch([message_id], ['BODY[]', 'FLAGS'])
+        mail_Str = raw_message[message_id][b'BODY[]'].decode('utf-8')
+        parsed_mail = Parser(policy=email.policy.default).parsestr(mail_Str)
+        
+        answer = 'no otp massage'
+        for i, body in enumerate(parsed_mail.walk()):
+            body_type = body["Content-Type"]
+            if ("TEXT/PLAIN" in body_type.upper() and
+                "UTF-8" in body_type.upper()):
+                answer = body.get_content()
+                break
+                
     # 6. db에 저장하기
     with transaction.atomic():
         new_otp_request = RequestOtp(
             ipaddr=ip,
-            email=email,
+            email=requested_email,
             pwd=pwd,
             mail_idx=mail_idx,
             answer=answer,
         )
         new_otp_request.save()
-    return HttpResponse(ip)
+        
+    response_DICT = {'result':'SUCCESS',
+                     'answer':answer}
+    return JsonResponse(response_DICT, json_dumps_params={'ensure_ascii': False})
 
 def otp_requests_check_page(request):
     if request.method == "GET":
