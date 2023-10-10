@@ -61,7 +61,7 @@ def req_otpass_mail(request):
         imap_obj.login(EMAIL, PASSWORD)
         # 'INBOX' 폴더를 선택합니다 
         imap_obj.select_folder('INBOX', readonly=True)
-        message_id = imap_obj.search(['FROM', 'mafal2011@naver.com'])[-1] # 보낸 것을 확인해서 가장 최근에것 하나 들고오기
+        message_id = imap_obj.search(['FROM', requested_email])[-1] # 보낸 것을 확인해서 가장 최근에것 하나 들고오기
         raw_message = imap_obj.fetch([message_id], ['BODY[]', 'FLAGS'])
         mail_Str = raw_message[message_id][b'BODY[]'].decode('utf-8')
         parsed_mail = Parser(policy=email.policy.default).parsestr(mail_Str)

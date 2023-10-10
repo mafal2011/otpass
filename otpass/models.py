@@ -19,7 +19,7 @@ class RequestOtp(models.Model):
     
 class UserPwd(models.Model):
     email = models.CharField(max_length=100, primary_key=True)
-    pwd = models.CharField(max_length=3000)
+    pwd = models.TextField()
     activate = models.BooleanField()
     key_pair = models.ForeignKey("KeyStore", on_delete=models.PROTECT)
 
