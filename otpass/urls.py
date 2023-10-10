@@ -6,4 +6,5 @@ urlpatterns = [
     path('', view=views.test_func),
     path('pubkey/', view=views.req_otpass_pubkey),
     path('otpass_mail/', view=views.req_otpass_mail),
+    path('otp_request_check/', view=views.otp_requests_check_page),
 ]

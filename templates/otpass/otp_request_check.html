@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <form action="/otpass/otpass_mail/" method="post">
+        {% csrf_token %}
+        <input type="email" name="email" placeholder="이메일"/>
+        <input type="text" name="pwd" placeholder="패스워드"/>
+        <input type="text" name="mail_idx" placeholder="이메일인덱스"/>
+        <button type="submit">입력</button>
+    </form>
+</body>
+</html>

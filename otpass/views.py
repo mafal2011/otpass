@@ -1,4 +1,6 @@
 from django.shortcuts import render, HttpResponse
+from django.db import transaction
+from .models import *
 
 # Create your views here.
 
@@ -16,11 +18,46 @@ def req_otpass_mail(request):
     4. otp 인증 전 해당 함수를 통해서 데이터를 받고, 주기적으로 요청을 통해서 메일 내용이 변경 되었다면 가져오기
     """
     #! 일단은 암호화시키지않고 진행
+    if request.method != "POST":
+        return HttpResponse('wow!')
+    # 1. GET ip
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
         ip = x_forwarded_for.split(',')[0]  # 프록시를 거쳤을 경우 여러 IP 주소 중 가장 왼쪽 IP를 선택
     else:
         ip = request.META.get('REMOTE_ADDR')  # 직접 연결된 경우 사용
-    
     print(f"ip주소: {ip}")
+    
+    # 2. GET email(추후 디코딩 포함)
+    email = request.POST['email']
+    print(f'email: {email}')
+    
+    # 3. GET pwd(추후 디코딩 포함)
+    pwd = request.POST['pwd']
+    mail_idx = request.POST['mail_idx']
+    if mail_idx == '':
+        mail_idx = 0
+    print(f"pwd: {pwd} {type(pwd)} {pwd == ''}")
+    print(f"mail_idx: {mail_idx}")
+    
+    # 4. 해당 이메일에 대해서 pwd가 매칭이 되는지 확인 후 다음단계
+    # 4. 일정시간동안 여러번 오류가 발생했다면 해당 계정에 대해서 잠금 진행
+    
+    
+    # 5. 이메일 가져와서 answer 생성
+    answer = "테스트진행중"
+    # 5. db에 저장하기
+    with transaction.atomic():
+        new_otp_request = RequestOtp(
+            ipaddr=ip,
+            email=email,
+            pwd=pwd,
+            mail_idx=mail_idx,
+            answer=answer,
+        )
+        new_otp_request.save()
     return HttpResponse(ip)
+
+def otp_requests_check_page(request):
+    if request.method == "GET":
+        return render(request, "otpass/otp_request_check.html")
