@@ -2,6 +2,11 @@ from django.shortcuts import render, HttpResponse
 from django.db import transaction
 from .models import *
 
+import imapclient
+
+EMAIL = 'mafal201121@gmail.com' 
+PASSWORD = 'goyqgwyjnmprnigo'
+
 # Create your views here.
 
 def test_func(request):
@@ -45,8 +50,19 @@ def req_otpass_mail(request):
     
     
     # 5. 이메일 가져와서 answer 생성
+    # IMAP 서버에 연결하고 로그인합니다
+    with imapclient.IMAPClient('imap.gmail.com', ssl=True) as imap_obj:
+        # imap_obj = imapclient.IMAPClient('imap.gmail.com', ssl=True)
+        imap_obj.login(EMAIL, PASSWORD)
+        # 'INBOX' 폴더를 선택합니다 
+        imap_obj.select_folder('INBOX', readonly=True)
+        message_ids = imap_obj.search(['FROM', 'mafal2011@naver.com'])[-1] # 보낸 것을 확인해서 가장 최근에것 하나 들고오기
+        raw_message = imap_obj.fetch([message_ids], ['BODY[]', 'FLAGS'])
+    
+
+    
     answer = "테스트진행중"
-    # 5. db에 저장하기
+    # 6. db에 저장하기
     with transaction.atomic():
         new_otp_request = RequestOtp(
             ipaddr=ip,
