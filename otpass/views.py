@@ -17,6 +17,12 @@ import hashlib
 
 EMAIL = 'mafal201121@gmail.com' 
 PASSWORD = 'goyqgwyjnmprnigo'
+# with imapclient.IMAPClient('imap.gmail.com', ssl=True) as imap_obj:
+imap_obj = imapclient.IMAPClient('imap.gmail.com', ssl=True)
+imap_obj.login(EMAIL, PASSWORD)
+# imap_obj.logout() [주기적으로 로그아웃 해줘야함]
+# 'INBOX' 폴더를 선택합니다 
+imap_obj.select_folder('INBOX', readonly=True)
 
 # Create your views here.
 
@@ -42,9 +48,18 @@ def req_otpass_mail(request):
     3. 전달된 메일은 클라이언트단에서 디코딩해서 사용해야함
     4. otp 인증 전 해당 함수를 통해서 데이터를 받고, 주기적으로 요청을 통해서 메일 내용이 변경 되었다면 가져오기
     """
+    # 1. GET ip
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]  # 프록시를 거쳤을 경우 여러 IP 주소 중 가장 왼쪽 IP를 선택
+    else:
+        ip = request.META.get('REMOTE_ADDR')  # 직접 연결된 경우 사용
+    print(f"ip주소: {ip}")
+    
     #! 일단은 암호화시키지않고 진행
     if request.method != "POST":
-        return HttpResponse('wow!')
+        new_otp_request.save()
+        answer = '지원하지 않는 방식입니다.'
     # 1. GET ip
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
@@ -99,24 +114,18 @@ def req_otpass_mail(request):
     
     
     # 5. 이메일 가져와서 answer 생성
-    # IMAP 서버에 연결하고 로그인합니다
-    with imapclient.IMAPClient('imap.gmail.com', ssl=True) as imap_obj:
-        # imap_obj = imapclient.IMAPClient('imap.gmail.com', ssl=True)
-        imap_obj.login(EMAIL, PASSWORD)
-        # 'INBOX' 폴더를 선택합니다 
-        imap_obj.select_folder('INBOX', readonly=True)
-        message_id = imap_obj.search(['FROM', requested_email])[-1] # 보낸 것을 확인해서 가장 최근에것 하나 들고오기
-        raw_message = imap_obj.fetch([message_id], ['BODY[]', 'FLAGS'])
-        mail_Str = raw_message[message_id][b'BODY[]'].decode('utf-8')
-        parsed_mail = Parser(policy=email.policy.default).parsestr(mail_Str)
-        
-        answer = 'no otp massage'
-        for i, body in enumerate(parsed_mail.walk()):
-            body_type = body["Content-Type"]
-            if ("TEXT/PLAIN" in body_type.upper() and
-                "UTF-8" in body_type.upper()):
-                answer = body.get_content()
-                break
+    message_id = imap_obj.search(['FROM', requested_email])[-1] # 보낸 것을 확인해서 가장 최근에것 하나 들고오기
+    raw_message = imap_obj.fetch([message_id], ['BODY[]', 'FLAGS'])
+    mail_Str = raw_message[message_id][b'BODY[]'].decode('utf-8')
+    parsed_mail = Parser(policy=email.policy.default).parsestr(mail_Str)
+    
+    answer = 'no otp massage'
+    for i, body in enumerate(parsed_mail.walk()):
+        body_type = body["Content-Type"]
+        if ("TEXT/PLAIN" in body_type.upper() and
+            "UTF-8" in body_type.upper()):
+            answer = body.get_content()
+            break
                 
     # 6. db에 저장하기
     with transaction.atomic():
