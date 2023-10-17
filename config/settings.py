@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_crontab', # 크론탭 추가
+    'django_extensions', # jupyter 환경에서 shell 실행
     'otpass',
 ]
 

@@ -8,6 +8,13 @@ import imapclient
 from email.parser import Parser
 import email.policy
 
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from cryptography.hazmat.primitives import hashes
+import base64
+import hashlib
+
 EMAIL = 'mafal201121@gmail.com' 
 PASSWORD = 'goyqgwyjnmprnigo'
 
@@ -17,7 +24,15 @@ def test_func(request):
     return HttpResponse("OK")
 
 def req_otpass_pubkey(request):
-    return HttpResponse("req_pubkey")
+    """
+    퍼블릭키를 출력하는 api
+    """
+    if request.method == 'GET':
+        keystore_inst = KeyStore.objects.get(name='default_key')
+        pubkey = keystore_inst.pubkey
+        return HttpResponse(pubkey)
+    else:
+        return HttpResponse("not support method")
 
 @csrf_exempt
 def req_otpass_mail(request):
@@ -41,9 +56,38 @@ def req_otpass_mail(request):
     # 2. GET email(추후 디코딩 포함)
     requested_email = request.POST['email']
     print(f'requested_email: {requested_email}')
+    # 2-1. userpwd Instance 가져오기
+    userpwd_inst = UserPwd.objects.get(email=requested_email)
     
     # 3. GET pwd(추후 디코딩 포함)
     pwd = request.POST['pwd']
+    # 3-1. 키 인스턴스 생성
+    keystore_inst = userpwd_inst.key_pair # 할당된 키페어
+    prikey = keystore_inst.prikey
+    prikey_inst = serialization.load_pem_private_key(
+        prikey.encode('utf-8'),
+        password=None,
+        backend=default_backend()
+    )
+    # 3-2. 패스워드 디코딩(base64 --> rsa --> sha512해시화 된 암호)
+    pwd = prikey_inst.decrypt(
+        base64.b64decode(pwd),
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    ).decode('utf-8')
+    pwd = hashlib.sha512(pwd.encode()).hexdigest()
+    print(f'[dev check pwd]: {pwd == userpwd_inst.pwd}') # 오케이 정확히 일치
+    # 3-3. 패스워드가 sha512와 동일하지 않으면 
+    if pwd != userpwd_inst.pwd:
+        answer = '비밀번호가 일치하지 않습니다.'
+        response_DICT = {'result':'FAILED',
+                     'answer':answer}
+        return JsonResponse(response_DICT, json_dumps_params={'ensure_ascii': False})
+    
+    
     mail_idx = request.POST['mail_idx']
     if mail_idx == '':
         mail_idx = 0
