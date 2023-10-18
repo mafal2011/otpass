@@ -15,14 +15,16 @@ from cryptography.hazmat.primitives import hashes
 import base64
 import hashlib
 
-EMAIL = 'mafal201121@gmail.com' 
-PASSWORD = 'goyqgwyjnmprnigo'
-# with imapclient.IMAPClient('imap.gmail.com', ssl=True) as imap_obj:
-imap_obj = imapclient.IMAPClient('imap.gmail.com', ssl=True)
-imap_obj.login(EMAIL, PASSWORD)
-# imap_obj.logout() [주기적으로 로그아웃 해줘야함]
-# 'INBOX' 폴더를 선택합니다 
-imap_obj.select_folder('INBOX', readonly=True)
+
+EMAIL = GlobalVar.objects.get(var_nm='EMAIL').var_val
+PASSWORD = GlobalVar.objects.get(var_nm='PASSWORD').var_val
+
+# # with imapclient.IMAPClient('imap.gmail.com', ssl=True) as imap_obj:
+# imap_obj = imapclient.IMAPClient('imap.gmail.com', ssl=True)
+# imap_obj.login(EMAIL, PASSWORD)
+# # imap_obj.logout() [주기적으로 로그아웃 해줘야함]
+# # 'INBOX' 폴더를 선택합니다 
+# imap_obj.select_folder('INBOX', readonly=True)
 
 # Create your views here.
 
@@ -48,35 +50,53 @@ def req_otpass_mail(request):
     3. 전달된 메일은 클라이언트단에서 디코딩해서 사용해야함
     4. otp 인증 전 해당 함수를 통해서 데이터를 받고, 주기적으로 요청을 통해서 메일 내용이 변경 되었다면 가져오기
     """
+    # 0. GET User-Agent
+    user_agent = request.headers.get('User-Agent', '')
+    
     # 1. GET ip
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
         ip = x_forwarded_for.split(',')[0]  # 프록시를 거쳤을 경우 여러 IP 주소 중 가장 왼쪽 IP를 선택
     else:
         ip = request.META.get('REMOTE_ADDR')  # 직접 연결된 경우 사용
-    print(f"ip주소: {ip}")
     
-    #! 일단은 암호화시키지않고 진행
-    if request.method != "POST":
-        new_otp_request.save()
-        answer = '지원하지 않는 방식입니다.'
-    # 1. GET ip
+    # 2. GET mail_idx
+    mail_idx = request.POST.get('mail_idx', '')
+    if mail_idx == '':
+        mail_idx = 0
+    
+    # 3. GET ip
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
         ip = x_forwarded_for.split(',')[0]  # 프록시를 거쳤을 경우 여러 IP 주소 중 가장 왼쪽 IP를 선택
     else:
         ip = request.META.get('REMOTE_ADDR')  # 직접 연결된 경우 사용
-    print(f"ip주소: {ip}")
+
+    # 4. GET email --> 매칭되는거 없으면 FAILED 리턴
+    try:
+        requested_email = request.POST.get('email', 'none@nonemail.com')
+        # 2-1. userpwd Instance 가져오기
+        userpwd_inst = UserPwd.objects.get(email=requested_email)
+    except:
+        answer = '등록되지 않는 이메일이거나 비밀번호가 일치하지 않습니다.'
+        with transaction.atomic():
+            new_otp_request = RequestOtp(
+                ipaddr=ip,
+                email=requested_email,
+                pwd='',
+                mail_idx=mail_idx,
+                answer=answer,
+            )
+            new_otp_request.save()
+            
+        response_DICT = {'result':'FAILED',
+                        'answer':answer}
+        return JsonResponse(response_DICT, json_dumps_params={'ensure_ascii': False})
     
-    # 2. GET email(추후 디코딩 포함)
-    requested_email = request.POST['email']
-    print(f'requested_email: {requested_email}')
-    # 2-1. userpwd Instance 가져오기
-    userpwd_inst = UserPwd.objects.get(email=requested_email)
+    # 5. GET pwd & 복호화 디코딩 포함(DB에는 sha516적용된 상태로)
+    pwd = request.POST.get('pwd', '')
     
-    # 3. GET pwd(추후 디코딩 포함)
-    pwd = request.POST['pwd']
-    # 3-1. 키 인스턴스 생성
+    # 5-1. 키 인스턴스 생성
     keystore_inst = userpwd_inst.key_pair # 할당된 키페어
     prikey = keystore_inst.prikey
     prikey_inst = serialization.load_pem_private_key(
@@ -84,7 +104,7 @@ def req_otpass_mail(request):
         password=None,
         backend=default_backend()
     )
-    # 3-2. 패스워드 디코딩(base64 --> rsa --> sha512해시화 된 암호)
+    # 5-2. 패스워드 디코딩(base64 --> rsa --> sha512해시화 된 암호)
     pwd = prikey_inst.decrypt(
         base64.b64decode(pwd),
         padding.OAEP(
@@ -93,31 +113,45 @@ def req_otpass_mail(request):
             label=None
         )
     ).decode('utf-8')
-    pwd = hashlib.sha512(pwd.encode()).hexdigest()
-    print(f'[dev check pwd]: {pwd == userpwd_inst.pwd}') # 오케이 정확히 일치
-    # 3-3. 패스워드가 sha512와 동일하지 않으면 
-    if pwd != userpwd_inst.pwd:
-        answer = '비밀번호가 일치하지 않습니다.'
+    salted_pwd = pwd.encode() + userpwd_inst.salt # salt 적용
+    pwd = hashlib.sha512(salted_pwd).hexdigest() 
+    
+    # 6. 데이터 유효성 검증 및 로그저장
+    # ! <데이터 로그 저장 및 유효성 검증>
+    a = 0
+    if request.method != "POST":
+        a += 1
+        answer = '지원하지 않는 방식입니다.'
+    elif user_agent != 'dgnit-version231018': # 브라우저에서 접속 막기 & 라이센스처리 등을 위해서 활용
+        a += 1
+        answer = '라이센스가 없습니다.'
+    elif pwd != userpwd_inst.pwd:
+        a += 1
+        answer = '등록되지 않는 이메일이거나 비밀번호가 일치하지 않습니다.'
+    if a > 0: # 에러가 하나 있는 경우
+        with transaction.atomic():
+            new_otp_request = RequestOtp(
+                ipaddr=ip,
+                email=requested_email,
+                pwd=pwd,
+                mail_idx=mail_idx,
+                answer=answer,
+            )
+            new_otp_request.save()
         response_DICT = {'result':'FAILED',
-                     'answer':answer}
+                        'answer':answer}
         return JsonResponse(response_DICT, json_dumps_params={'ensure_ascii': False})
+    # ! </데이터 유효성 검증>
     
-    
-    mail_idx = request.POST['mail_idx']
-    if mail_idx == '':
-        mail_idx = 0
-    print(f"pwd: {pwd} {type(pwd)} {pwd == ''}")
-    print(f"mail_idx: {mail_idx}")
-    
-    # 4. 해당 이메일에 대해서 pwd가 매칭이 되는지 확인 후 다음단계
-    # 4. 일정시간동안 여러번 오류가 발생했다면 해당 계정에 대해서 잠금 진행
-    
-    
-    # 5. 이메일 가져와서 answer 생성
-    message_id = imap_obj.search(['FROM', requested_email])[-1] # 보낸 것을 확인해서 가장 최근에것 하나 들고오기
-    raw_message = imap_obj.fetch([message_id], ['BODY[]', 'FLAGS'])
-    mail_Str = raw_message[message_id][b'BODY[]'].decode('utf-8')
-    parsed_mail = Parser(policy=email.policy.default).parsestr(mail_Str)
+    # 7. 이메일 가져와서 answer 생성
+    with imapclient.IMAPClient('imap.gmail.com', ssl=True) as imap_obj:
+        imap_obj = imapclient.IMAPClient('imap.gmail.com', ssl=True)
+        imap_obj.login(EMAIL, PASSWORD)
+        imap_obj.select_folder('INBOX', readonly=True)
+        message_id = imap_obj.search(['FROM', requested_email])[-1] # 보낸 것을 확인해서 가장 최근에것 하나 들고오기
+        raw_message = imap_obj.fetch([message_id], ['BODY[]', 'FLAGS'])
+        mail_Str = raw_message[message_id][b'BODY[]'].decode('utf-8')
+        parsed_mail = Parser(policy=email.policy.default).parsestr(mail_Str)
     
     answer = 'no otp massage'
     for i, body in enumerate(parsed_mail.walk()):
@@ -127,7 +161,7 @@ def req_otpass_mail(request):
             answer = body.get_content()
             break
                 
-    # 6. db에 저장하기
+    # 8. db에 저장하고 응답하기(정상완료)
     with transaction.atomic():
         new_otp_request = RequestOtp(
             ipaddr=ip,
