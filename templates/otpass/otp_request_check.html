@@ -1,3 +1,6 @@
+{% comment %} 
+서버측에서 User-Agent에 대한 로직을 잠시 생략해야 해당 페이지를 사용할 수 있음 
+{% endcomment %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,11 +9,57 @@
     <title>Document</title>
 </head>
 <body>
-    <form action="/otpass/otpass_mail/" method="post"
+    <form action="/otpass/otpass_mail/" method="post">
         <input type="email" name="email" placeholder="이메일"/>
         <input type="text" name="pwd" placeholder="패스워드"/>
         <input type="text" name="mail_idx" placeholder="이메일인덱스"/>
         <button type="submit">입력</button>
     </form>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/forge/0.10.0/forge.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.0.0-rc.1/jsencrypt.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form');
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                
+                const publicKeyPem = '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq2nf07b/mgfo1G8XuvuM\nRHYuod3JeARvfUvH0CUgs+tjqeUezLbzsOCMtZUTehLwBr3NsAso4Zc0nN2SA2zH\ngxjM4Xf48zTuXhLkFzz9PWrxSGPPzwjA0dOWr9l3LREZmF+EeMg8ZWJNlwLbIkoX\nCQd5g/d7iRa30370PLhwE9omOSguV4DV6KN+GkTkb/2lYeMalqhbDYWAcbZxJw6M\nSry34mptIVZRxkRhCVXvveXzo3l06Ckt5Ptc8xqvrOYeaehZVfrABj6GGx9fOA6v\nryYexA2JeCwcxjJP4XW4bd1JPuIDvkk1btcmK59f37WwzVcAcsbnFFJoQe/nAiVV\nSwIDAQAB\n-----END PUBLIC KEY-----\n';  // 여기에 해당 public key를 삽입해주세요.
+                const publicKey = forge.pki.publicKeyFromPem(publicKeyPem);
+                
+                const utf8Pwd = forge.util.encodeUtf8(form.pwd.value);
+                const encryptedPwdBytes = publicKey.encrypt(utf8Pwd, 'RSA-OAEP', {
+                    md: forge.md.sha256.create(),
+                    mgf1: {
+                        md: forge.md.sha256.create()
+                    }
+                });
+        
+                // Convert to Base64
+                const encryptedPwd = forge.util.encode64(encryptedPwdBytes);
+        
+                const formData = new URLSearchParams();
+                formData.append('email', form.email.value);
+                formData.append('pwd', encryptedPwd);
+                formData.append('mail_idx', form.mail_idx.value);
+        
+                fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'User-Agent': 'dgnit-version231018'
+                    },
+                    body: formData
+                }).then(response => response.json()).then(data => {
+                    console.log(data);  // 여기서 응답을 처리하실 수 있습니다.
+                }).catch(error => {
+                    console.error('Error:', error);
+                });
+            });
+        });
+        
+</script>
+    
+    
+    
 </body>
 </html>

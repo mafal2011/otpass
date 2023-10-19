@@ -20,11 +20,11 @@ EMAIL = GlobalVar.objects.get(var_nm='EMAIL').var_val
 PASSWORD = GlobalVar.objects.get(var_nm='PASSWORD').var_val
 
 # # with imapclient.IMAPClient('imap.gmail.com', ssl=True) as imap_obj:
-# imap_obj = imapclient.IMAPClient('imap.gmail.com', ssl=True)
-# imap_obj.login(EMAIL, PASSWORD)
+imap_obj = imapclient.IMAPClient('imap.gmail.com', ssl=True)
+imap_obj.login(EMAIL, PASSWORD)
 # # imap_obj.logout() [주기적으로 로그아웃 해줘야함]
 # # 'INBOX' 폴더를 선택합니다 
-# imap_obj.select_folder('INBOX', readonly=True)
+imap_obj.select_folder('INBOX', readonly=True)
 
 # Create your views here.
 
@@ -50,8 +50,9 @@ def req_otpass_mail(request):
     3. 전달된 메일은 클라이언트단에서 디코딩해서 사용해야함
     4. otp 인증 전 해당 함수를 통해서 데이터를 받고, 주기적으로 요청을 통해서 메일 내용이 변경 되었다면 가져오기
     """
+    global EMAIL, PASSWORD, imap_obj
     # 0. GET User-Agent
-    user_agent = request.headers.get('User-Agent', '')
+    user_agent = request.headers.get('User-Agent', 'dgnit-version231018')
     
     # 1. GET ip
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -122,9 +123,9 @@ def req_otpass_mail(request):
     if request.method != "POST":
         a += 1
         answer = '지원하지 않는 방식입니다.'
-    elif user_agent != 'dgnit-version231018': # 브라우저에서 접속 막기 & 라이센스처리 등을 위해서 활용
-        a += 1
-        answer = '라이센스가 없습니다.'
+    # elif user_agent != 'dgnit-version231018': # 브라우저에서 접속 막기 & 라이센스처리 등을 위해서 활용
+    #     a += 1
+    #     answer = '라이센스가 없습니다.'
     elif pwd != userpwd_inst.pwd:
         a += 1
         answer = '등록되지 않는 이메일이거나 비밀번호가 일치하지 않습니다.'
@@ -143,8 +144,14 @@ def req_otpass_mail(request):
         return JsonResponse(response_DICT, json_dumps_params={'ensure_ascii': False})
     # ! </데이터 유효성 검증>
     
-    # 7. 이메일 가져와서 answer 생성
-    with imapclient.IMAPClient('imap.gmail.com', ssl=True) as imap_obj:
+    # 7. 이메일 가져와서 answer 생성(세션이 만료되었으면 자동으로 다시 로그인해서 진행할 수 있도록)
+    try:
+        message_id = imap_obj.search(['FROM', requested_email])[-1] # 보낸 것을 확인해서 가장 최근에것 하나 들고오기
+        raw_message = imap_obj.fetch([message_id], ['BODY[]', 'FLAGS'])
+        mail_Str = raw_message[message_id][b'BODY[]'].decode('utf-8')
+        parsed_mail = Parser(policy=email.policy.default).parsestr(mail_Str)
+    except:
+        del imap_obj
         imap_obj = imapclient.IMAPClient('imap.gmail.com', ssl=True)
         imap_obj.login(EMAIL, PASSWORD)
         imap_obj.select_folder('INBOX', readonly=True)
@@ -152,7 +159,7 @@ def req_otpass_mail(request):
         raw_message = imap_obj.fetch([message_id], ['BODY[]', 'FLAGS'])
         mail_Str = raw_message[message_id][b'BODY[]'].decode('utf-8')
         parsed_mail = Parser(policy=email.policy.default).parsestr(mail_Str)
-    
+        
     answer = 'no otp massage'
     for i, body in enumerate(parsed_mail.walk()):
         body_type = body["Content-Type"]
