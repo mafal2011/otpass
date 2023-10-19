@@ -88,6 +88,14 @@ DATABASES = {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
+    # 'default': {
+    #     'ENGINE': 'django.db.backends.mysql',
+    #     'NAME': 'otpass',               # 데이터베이스 이름
+    #     'USER': 'root',               # 사용자 이름
+    #     'PASSWORD': 'dhdmseka',       # 비밀번호
+    #     'HOST': 'localhost',               # MariaDB 서버의 주소 (예: 'localhost' 또는 원격 서버의 IP)
+    #     'PORT': '24566',                      # 포트 번호
+    # }
 }
 
 

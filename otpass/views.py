@@ -14,6 +14,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import hashes
 import base64
 import hashlib
+import time
 
 
 EMAIL = GlobalVar.objects.get(var_nm='EMAIL').var_val
@@ -182,6 +183,18 @@ def req_otpass_mail(request):
     response_DICT = {'result':'SUCCESS',
                      'answer':answer}
     return JsonResponse(response_DICT, json_dumps_params={'ensure_ascii': False})
+
+
+@csrf_exempt
+def req_otpass_mail_gapi(request):
+    """위의 로직에서는 django 개발서버에서는 여러개 들어오면 에러
+    gunicorn에서 운영하면 순차적으로 처리가 됨
+    """
+    time.sleep(5)
+    response_DICT = {'result':'SUCCESS',
+                     'answer':'hi'}
+    return JsonResponse(response_DICT, json_dumps_params={'ensure_ascii': False})
+
 
 def otp_requests_check_page(request):
     if request.method == "GET":
