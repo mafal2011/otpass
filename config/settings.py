@@ -23,12 +23,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-b4btf)k5b5*61@5lv!+^!gf=a3s82jkph0ss1^)!6kc!wm(d@2'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = [
     '127.0.0.1',
-    '192.168.0.20',
-    '192.168.190.179',
+    '192.168.0.5',
 ]
 
 
@@ -84,18 +83,18 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
     # 'default': {
-    #     'ENGINE': 'django.db.backends.mysql',
-    #     'NAME': 'otpass',               # 데이터베이스 이름
-    #     'USER': 'root',               # 사용자 이름
-    #     'PASSWORD': 'dhdmseka',       # 비밀번호
-    #     'HOST': 'localhost',               # MariaDB 서버의 주소 (예: 'localhost' 또는 원격 서버의 IP)
-    #     'PORT': '24566',                      # 포트 번호
+    #     'ENGINE': 'django.db.backends.sqlite3',
+    #     'NAME': BASE_DIR / 'db.sqlite3',
     # }
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'otpass',               # 데이터베이스 이름
+        'USER': 'root',               # 사용자 이름
+        'PASSWORD': 'dhdmseka',       # 비밀번호
+        'HOST': 'localhost',               # MariaDB 서버의 주소 (예: 'localhost' 또는 원격 서버의 IP)
+        'PORT': '22345',                      # 포트 번호
+    }
 }
 
 
