@@ -23,11 +23,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-b4btf)k5b5*61@5lv!+^!gf=a3s82jkph0ss1^)!6kc!wm(d@2'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG =True
 
 ALLOWED_HOSTS = [
-    '127.0.0.1',
-    '192.168.0.5',
+    '*', # 접속 ip는 공유기(포트포워딩)/우분투방화벽(ufw)/웹서버 에서 관리하도록 진행
 ]
 
 
