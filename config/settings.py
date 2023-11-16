@@ -8,6 +8,9 @@ https://docs.djangoproject.com/en/4.2/topics/settings/
 
 For the full list of settingsㄽ두 and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
+
+! [웹버전 - missinglink] django, html, css(bootstrap), javascript 로만 웹을 만듬
+! [flutter버전 - mlapi] api, jwt 등의 형식으로 설계하기
 """
 
 from pathlib import Path
@@ -44,6 +47,9 @@ INSTALLED_APPS = [
     'django_crontab', # 크론탭 추가
     'django_extensions', # jupyter 환경에서 shell 실행
     'otpass',
+    'missinglink',
+    'user',
+    'mlapi',
 ]
 
 MIDDLEWARE = [

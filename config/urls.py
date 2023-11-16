@@ -20,4 +20,7 @@ from django.urls import path, include # include를 새로 import
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("otpass/", include("otpass.urls")),
+    # path("user/", include("user.urls")),
+    # path("missinglink/", include("missinglink.urls")),
+    # path("mlapi/", include("mlapi.urls")),
 ]
